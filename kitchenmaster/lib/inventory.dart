@@ -4,14 +4,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:tflite/tflite.dart';
-import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-
+import 'dart:io';
 
 class InventoryPage extends StatefulWidget {
   InventoryPage({Key? key}) : super(key: key);
@@ -26,14 +23,12 @@ class DynamicWidget extends StatefulWidget {
   TextEditingController nameController = TextEditingController();
   String id = '';
 
-
   DynamicWidget(TextEditingController n, int c) {
     nameController = n;
     name = n.text;
     count = c;
     id = UniqueKey().toString();
   }
-
 
   @override
   State<DynamicWidget> createState() => _DynamicWidgetState();
@@ -80,9 +75,9 @@ class _DynamicWidgetState extends State<DynamicWidget> {
                     child: TextField(
                       controller: widget.nameController,
                       focusNode: _focusNode,
-                      // onEditingComplete: () {
+                      // onChanged: (value) {
                       //   setState(() {
-                      //     widget.name = widget.nameController.text;
+                      //     widget.name = value;
                       //   });
                       // },
                       decoration: InputDecoration(
@@ -121,16 +116,11 @@ class _InventoryPageState extends State<InventoryPage> {
   List<DynamicWidget> listCards = [];
   List<TextEditingController> controllers = [];
   //TextEditingController nameController = new TextEditingController();
-  bool firstRun = true;
 
-  File? _image;
   List _result = [];
   late Widget futureWidget;
   String image_name = "";
-  callme() async {
-    await Future.delayed(Duration(seconds: 1));
-    return "success";
-  }
+
 
   getImage() async {
     var image = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -138,10 +128,6 @@ class _InventoryPageState extends State<InventoryPage> {
     debugPrint("Image.path: " + image!.path);
     setState(() {
       removeNoName();
-      _image = File(image.path);
-      image_name = File(image.path).toString().split('/').last.split('.').first;
-      TextEditingController nameController = new TextEditingController(text: image_name);
-      addDynamic(nameController, 0);
       image_name = "";
       //debugPrint("Apply on: " + _image!.path);
       //applyModelOnImage(_image!);
@@ -218,29 +204,6 @@ class _InventoryPageState extends State<InventoryPage> {
     return currentInventory;
   }
 
-  loadMyModel() async {
-    String? result = await Tflite.loadModel(
-      model: "assets/kitchen_master.tflite", 
-      labels: "assets/labels.txt");
-    debugPrint("Result: $result");
-  }
-
-  applyModelOnImage(File file) async {
-    var res = await Tflite.runModelOnImage(
-      path: file.path,
-      imageMean: 127.5,
-      imageStd: 127.5,
-      numResults: 2,
-      threshold: 0.1,
-      asynch: true);
-    
-    _result = res!;
-    String str = _result[0]["labels"];
-    debugPrint("Results Label:" + str);
-    debugPrint("Results Label Substring:" + str.substring(2));
-    debugPrint("Results Confidence:" + (_result[0]["confidence"]*100.0).toString().substring(0,2));
-  }
-
   void addDynamic(TextEditingController n, int c) {
     setState(() {
       controllers.add(n);
@@ -276,7 +239,6 @@ class _InventoryPageState extends State<InventoryPage> {
         home: Scaffold(
             body: GestureDetector(
               onTap: () {
-
                 FocusScope.of(context).requestFocus(FocusNode());
                 removeNoName();
               },
@@ -383,7 +345,6 @@ class _InventoryPageState extends State<InventoryPage> {
                     heroTag: "upload_photo",
                     onPressed: () {
                       getImage();
-
                     },
                     backgroundColor: Colors.black,
                   ),
