@@ -26,6 +26,7 @@ class DynamicWidget extends StatefulWidget {
   TextEditingController nameController = TextEditingController();
   String id = '';
 
+
   DynamicWidget(TextEditingController n, int c) {
     nameController = n;
     name = n.text;
@@ -33,11 +34,32 @@ class DynamicWidget extends StatefulWidget {
     id = UniqueKey().toString();
   }
 
+
   @override
   State<DynamicWidget> createState() => _DynamicWidgetState();
 }
 
 class _DynamicWidgetState extends State<DynamicWidget> {
+  late FocusNode _focusNode;
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode();
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) {
+        setState(() {
+          widget.name = widget.nameController.text;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -57,11 +79,12 @@ class _DynamicWidgetState extends State<DynamicWidget> {
                   Expanded(
                     child: TextField(
                       controller: widget.nameController,
-                      onChanged: (value) {
-                        setState(() {
-                          widget.name = value;
-                        });
-                      },
+                      focusNode: _focusNode,
+                      // onEditingComplete: () {
+                      //   setState(() {
+                      //     widget.name = widget.nameController.text;
+                      //   });
+                      // },
                       decoration: InputDecoration(
                         hintText: "Enter Name",
                         hintStyle: TextStyle(color: Colors.black, fontSize: 18),
@@ -98,10 +121,16 @@ class _InventoryPageState extends State<InventoryPage> {
   List<DynamicWidget> listCards = [];
   List<TextEditingController> controllers = [];
   //TextEditingController nameController = new TextEditingController();
+  bool firstRun = true;
 
   File? _image;
   List _result = [];
+  late Widget futureWidget;
   String image_name = "";
+  callme() async {
+    await Future.delayed(Duration(seconds: 1));
+    return "success";
+  }
 
   getImage() async {
     var image = await ImagePicker().pickImage(source: ImageSource.gallery);
@@ -159,6 +188,9 @@ class _InventoryPageState extends State<InventoryPage> {
   }
 
   Future<Map<String, int>> getData() async {
+    await Future.delayed(Duration(seconds: 1));
+
+    debugPrint("FETCHING FROM FIREBASE");
     var userUid = FirebaseAuth.instance.currentUser!.uid;
     // var docRef = await FirebaseFirestore.instance.collection('users').doc(userUid);
     // await docRef.update({
@@ -244,6 +276,7 @@ class _InventoryPageState extends State<InventoryPage> {
         home: Scaffold(
             body: GestureDetector(
               onTap: () {
+
                 FocusScope.of(context).requestFocus(FocusNode());
                 removeNoName();
               },
@@ -263,7 +296,10 @@ class _InventoryPageState extends State<InventoryPage> {
                             fontWeight: FontWeight.normal,
                             height: 1)),
                     SizedBox(height: 30),
-                    ElevatedButton(
+                    Row(
+                    children:<Widget>[
+                      SizedBox(width: 20),
+                      ElevatedButton(
                       child: Text('Reset Inventory'),
                       onPressed: () {
                         resetDynamic();
@@ -278,33 +314,32 @@ class _InventoryPageState extends State<InventoryPage> {
                         ),
                       ),
                     ),
-                    FutureBuilder(
-                      future: getData(),
-                      builder: (context, AsyncSnapshot<Map<String,int>> snapshot) {
-                        if (snapshot.connectionState == ConnectionState.done) {
-                          final currentInventory = snapshot.data;
-                          final inventoryItems = currentInventory?.entries.toList() ?? [];
+                      SizedBox(width: 40),
+                      ElevatedButton(
+                        child: Text('Update Inventory'),
+                        onPressed: () {
+                          Map<String, int> inventory = {
+                            'banana': 10,
+                            'apple': 5,
+                            'kiwi': 2,
+                          };
+                          updateInventory(inventory);
+                        },
+                        style: ButtonStyle(
+                          backgroundColor:
+                          MaterialStateProperty.all<Color>(Colors.black),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]
 
-                          return ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: inventoryItems.length,
-                            itemBuilder: (BuildContext context, int index) {
-                              final item = inventoryItems[index];
-                              final itemName = item.key;
-                              final itemQuantity = item.value;
-                              final controller = TextEditingController(text: '$itemName');
-
-                              return DynamicWidget(
-                                controller,itemQuantity
-                              );
-                            },
-                          );
-                        } else if (snapshot.connectionState == ConnectionState.none) {
-                          return Text("No data");
-                        }
-                        return CircularProgressIndicator();
-                      },
                     ),
+                    futureWidget,
+
                     Flexible(
                       fit: FlexFit.tight,
                       child: new ListView.builder(
@@ -332,7 +367,9 @@ class _InventoryPageState extends State<InventoryPage> {
                             );
                           }),
                     ),
-                  ])),
+                  ]
+                  )
+              ),
 
             ),
 
@@ -345,13 +382,8 @@ class _InventoryPageState extends State<InventoryPage> {
                     icon: const Icon(Icons.add_a_photo),
                     heroTag: "upload_photo",
                     onPressed: () {
-                      // getImage();
-                      Map<String, int> inventory = {
-                        'banana': 10,
-                        'apple': 5,
-                        'kiwi': 2,
-                      };
-                      updateInventory(inventory);
+                      getImage();
+
                     },
                     backgroundColor: Colors.black,
                   ),
@@ -374,6 +406,35 @@ class _InventoryPageState extends State<InventoryPage> {
   @override
   void initState() {
     super.initState();
+    futureWidget = FutureBuilder(
+      future:  getData(),
+      builder: (context, AsyncSnapshot<Map<String,int>> snapshot) {
+
+        if (snapshot.connectionState == ConnectionState.done) {
+
+          final currentInventory = snapshot.data;
+          final inventoryItems = currentInventory?.entries.toList() ?? [];
+
+          return ListView.builder(
+            shrinkWrap: true,
+            itemCount: inventoryItems.length,
+            itemBuilder: (BuildContext context, int index) {
+              final item = inventoryItems[index];
+              final itemName = item.key;
+              final itemQuantity = item.value;
+              final controller = TextEditingController(text: '$itemName');
+
+              return DynamicWidget(
+                  controller,itemQuantity
+              );
+            },
+          );
+        } else if (snapshot.connectionState == ConnectionState.none) {
+          return Text("No data");
+        }
+        return CircularProgressIndicator();
+      },
+    );
      //loadMyModel();
   }
 }
